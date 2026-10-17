@@ -22,12 +22,12 @@ A $0.05 payout is only economic where fees are sub-cent. That is why this is on 
 
 ## Repo layout
 
-- `app/` — Next.js app: landing page, bounties, contribute flow, wallet, login, agent console
-- `agents/router/` — the router agent: x402 settlement, bounty creation, decider, attribution
-- `contracts/src/` — `ScoutEscrow.sol`, `ScoutReputation.sol`, interfaces
-- `scripts/` — `deploy.mts`, `register-agent.mts`, `seed-demo.mts`, `simulate.mts`
-- `docs/` — `ARCHITECTURE.md`, `ROUTER.md`, `DEPLOY.md`, `MAINNET_CHECKLIST.md`
-- `deployments/` — Mainnet deployment record
+- `app/`: Next.js app (landing page, bounties, contribute flow, wallet, login, agent console)
+- `agents/router/`: the router agent (x402 settlement, bounty creation, decider, attribution)
+- `contracts/src/`: `ScoutEscrow.sol`, `ScoutReputation.sol`, interfaces
+- `scripts/`: `deploy.mts`, `register-agent.mts`, `seed-demo.mts`, `simulate.mts`
+- `docs/`: `ARCHITECTURE.md`, `ROUTER.md`, `DEPLOY.md`, `MAINNET_CHECKLIST.md`
+- `deployments/`: Mainnet deployment record
 
 ## Run it locally
 

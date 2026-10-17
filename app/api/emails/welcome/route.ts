@@ -30,7 +30,7 @@ export async function POST(request: Request) {
     const { error } = await resend.emails.send({
       from,
       to,
-      subject: 'Your Scout wallet is ready — earn for what you can see',
+      subject: 'Your Scout wallet is ready (earn for what you can see)',
       html: `
 <!doctype html>
 <html><body style="margin:0;background:#FBFAF7;color:#10140F;font-family:-apple-system,Segoe UI,Helvetica,Arial,sans-serif;">
