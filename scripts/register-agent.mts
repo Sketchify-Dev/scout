@@ -72,9 +72,24 @@ const agentURI = `${appUrl}/agent-registration.json`;
 const walletId = need('PRIVY_WALLET_ID');
 const walletAddress = need('PRIVY_WALLET_ADDRESS') as Address;
 
-// The file must be live before the registry points at it.
-const res = await fetch(agentURI, { signal: AbortSignal.timeout(15000) });
-if (!res.ok) throw new Error(`${agentURI} returned HTTP ${res.status}. Deploy the app first.`);
+// The file must be live before the registry points at it. Retried with a
+// generous timeout: some networks take 10s+ on the TLS handshake alone.
+async function fetchLiveFile(url: string) {
+  let lastError: unknown = null;
+  for (let attempt = 1; attempt <= 4; attempt++) {
+    try {
+      const res = await fetch(url, { signal: AbortSignal.timeout(60000) });
+      if (!res.ok) throw new Error(`${url} returned HTTP ${res.status}. Deploy the app first.`);
+      return res;
+    } catch (e) {
+      lastError = e;
+      if (attempt < 4) await new Promise((r) => setTimeout(r, 5000 * attempt));
+    }
+  }
+  throw lastError;
+}
+
+const res = await fetchLiveFile(agentURI);
 const file = (await res.json()) as { name?: string; services?: Array<{ name: string; endpoint: string }> };
 const walletEntry = file.services?.find((s) => s.name === 'wallet')?.endpoint ?? '';
 if (file.name !== 'Scout' || !walletEntry.toLowerCase().endsWith(walletAddress.toLowerCase())) {
@@ -84,10 +99,12 @@ if (file.name !== 'Scout' || !walletEntry.toLowerCase().endsWith(walletAddress.t
 const rpcUrl = process.env.DEPLOY_RPC_URL ?? 'https://forno.celo.org';
 const privy = new PrivyClient({ appId: need('PRIVY_APP_ID'), appSecret: need('PRIVY_APP_SECRET') });
 const account = createViemAccount(privy, { walletId, address: walletAddress });
-const pub = createPublicClient({ chain: celo, transport: http(rpcUrl) });
+// Generous timeouts and retries: slow TLS handshakes must not kill a Mainnet send.
+const transport = http(rpcUrl, { timeout: 120_000, retryCount: 5, retryDelay: 2000 });
+const pub = createPublicClient({ chain: celo, transport });
 // The register() call is a real Mainnet send from the agent wallet, so it
 // carries the ERC-8021 builder tag like every other countable transaction.
-const wallet = createWalletClient({ account, chain: celo, transport: http(rpcUrl) }).extend(
+const wallet = createWalletClient({ account, chain: celo, transport }).extend(
   withAttribution('celo_0107eaa60597'),
 );
 

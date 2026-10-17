@@ -1,0 +1,10 @@
+{
+  "chainId": 42220,
+  "identityRegistry": "0x8004A169FB4a3325136EB29fA0ceB6D2e539a432",
+  "agentId": "9971",
+  "agentURI": "https://scout-black-gamma.vercel.app/agent-registration.json",
+  "owner": "0xf6C95fE38eFbcBdf2Faffa4A21b256033CA84cD5",
+  "txHash": "0x650c55989c012c59d29c829519366f20c64dc597a8131e1455346e5587c4870e",
+  "block": "80362205",
+  "registeredAt": "2026-10-17T18:49:22.923Z"
+}
