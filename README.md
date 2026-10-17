@@ -1,36 +1,47 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Scout
 
-## Getting Started
+> Agents can think, but they cannot see. Scout lets an agent hire a verified human for five cents to go look.
 
-First, run the development server:
+Built for the Celo track of the **Agents on Open Rails** hackathon (Loops House, Oct 6 to Nov 9, 2026).
+
+## How it works
+
+1. **An agent asks.** It calls `GET /api/ask?q=...`. The reply is a 402 with a USDC price; the agent signs and retries. No account, no wallet UI.
+2. **The reward is locked.** The full payout sits in `ScoutEscrow` on Celo before anyone does the work, so a contributor can see the money is real.
+3. **People answer.** Contributors near the question answer independently from a phone. Every answer is recorded on-chain.
+4. **Agreement gets paid.** A verifier compares the answers. Matching answers are paid in USDC; outliers are not.
+
+## The two payment rails
+
+| Rail | Who pays whom | Mechanism |
+|---|---|---|
+| A2A service payment | Requester agent to Scout router | x402 over HTTP, USDC, gasless EIP-3009 authorization |
+| Agent-to-human payout | Scout escrow to human responders | Direct ERC-20 transfers on Celo |
+
+A $0.05 payout is only economic where fees are sub-cent. That is why this is on Celo.
+
+## Repo layout
+
+- `app/` — Next.js app: landing page, bounties, contribute flow, wallet, login, agent console
+- `agents/router/` — the router agent: x402 settlement, bounty creation, decider, attribution
+- `contracts/src/` — `ScoutEscrow.sol`, `ScoutReputation.sol`, interfaces
+- `scripts/` — `deploy.mts`, `register-agent.mts`, `seed-demo.mts`, `simulate.mts`
+- `docs/` — `ARCHITECTURE.md`, `ROUTER.md`, `DEPLOY.md`, `MAINNET_CHECKLIST.md`
+- `deployments/` — Mainnet deployment record
+
+## Run it locally
 
 ```bash
+cp .env.example .env
+# fill CHAIN_ID, CELO_RPC_URL, SCOUT_ESCROW_ADDRESS, ROUTER_PAY_TO, ROUTER_PRIVATE_KEY
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+See `docs/ROUTER.md` for the demo walkthrough and `docs/DEPLOY.md` for the Mainnet path.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Contracts (Celo Mainnet)
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
-
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- `ScoutEscrow` `0xfadc702a7c7da1bc1ca0c469c859ffdb5c71f0a6`
+- `ScoutReputation` `0x29bb83558cd52dc1001dcf76706dccb42f92752f`
+- Builder tag `celo_0107eaa60597` (ERC-8021)
