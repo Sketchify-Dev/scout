@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 import { EmptyState, Notice, PhaseBadge, Skeleton } from '@/components/ui';
 import { btn, field } from '@/lib/styles';
 import { Money } from '@/components/Currency';
@@ -43,7 +43,7 @@ function Progress({ got, need }: { got: number; need: number }) {
   );
 }
 
-export default function BountiesPage() {
+function BountiesList() {
   const net = useNetwork();
   const [rows, setRows] = useState<Row[] | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -216,5 +216,25 @@ export default function BountiesPage() {
         )}
       </div>
     </div>
+  );
+}
+
+export default function BountiesPage() {
+  // The list reads the clock during render for countdowns, so it renders
+  // client-side behind Suspense instead of failing the static prerender.
+  return (
+    <Suspense
+      fallback={
+        <div className="mx-auto max-w-6xl px-4 py-12 sm:px-6 sm:py-16" aria-busy aria-label="Loading bounties">
+          <div className="flex flex-col gap-3">
+            {[0, 1, 2].map((i) => (
+              <Skeleton key={i} className="h-24" />
+            ))}
+          </div>
+        </div>
+      }
+    >
+      <BountiesList />
+    </Suspense>
   );
 }
