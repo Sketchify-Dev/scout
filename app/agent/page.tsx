@@ -1,0 +1,277 @@
+'use client';
+
+import Link from 'next/link';
+import { useState } from 'react';
+import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
+import { ChainRef, Dl, Eyebrow, Notice, btn, field } from '@/components/ui';
+import { useNetwork } from '@/components/useNetwork';
+import { formatUsdc } from '@/lib/scout';
+
+const SAMPLES = [
+  'What is maize selling for per kg in Kisumu market today?',
+  'Is the pharmacy at Nyabugogo bus park in Kigali open right now?',
+  'What does a 2kg bag of rice cost at Makola market in Accra this week?',
+];
+
+interface Terms {
+  scheme: string;
+  network: string;
+  asset: string;
+  amount: string;
+  payTo: string;
+  extra?: { name?: string };
+}
+
+interface Posted {
+  bountyId: string;
+  escrowTxHash: string;
+  settlement: string;
+  pricing: {
+    chargedUsdc: string;
+    rewardPerResponseUsdc: string;
+    responsesRequired: number;
+    quoteSource: string;
+    quoteRationale: string;
+  };
+}
+
+/** x402 v2 puts the terms in the PAYMENT-REQUIRED header as base64 JSON. */
+function decodeTerms(header: string | null): Terms | null {
+  if (!header) return null;
+  try {
+    const parsed = JSON.parse(atob(header)) as { accepts?: Terms[] };
+    return parsed.accepts?.[0] ?? null;
+  } catch {
+    return null;
+  }
+}
+
+export default function AgentConsole() {
+  const net = useNetwork();
+  const reduce = useReducedMotion();
+  const [question, setQuestion] = useState(SAMPLES[0]);
+  const [busy, setBusy] = useState<'quote' | 'pay' | null>(null);
+  const [terms, setTerms] = useState<Terms | null>(null);
+  const [posted, setPosted] = useState<Posted | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const reset = () => {
+    setTerms(null);
+    setPosted(null);
+    setError(null);
+  };
+
+  const quote = async () => {
+    if (!question.trim()) return;
+    reset();
+    setBusy('quote');
+    try {
+      const res = await fetch(`/api/ask?q=${encodeURIComponent(question.trim())}`);
+      if (res.status !== 402) {
+        const body = (await res.json().catch(() => ({}))) as { error?: string };
+        throw new Error(body.error ?? `Expected a 402 quote, got HTTP ${res.status}.`);
+      }
+      const t = decodeTerms(res.headers.get('payment-required'));
+      if (!t) throw new Error('The router answered 402 but the payment terms could not be read.');
+      setTerms(t);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Quote failed.');
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const pay = async () => {
+    if (!question.trim()) return;
+    setError(null);
+    setBusy('pay');
+    try {
+      const res = await fetch('/api/requester/ask', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ question: question.trim() }),
+      });
+      const body = (await res.json()) as Posted & { error?: string };
+      if (!res.ok) throw new Error(body.error ?? `Request failed (${res.status}).`);
+      setPosted(body);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Posting failed.');
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  return (
+    <div className="mx-auto max-w-6xl px-4 py-12 sm:px-6 sm:py-16">
+      <header className="flex flex-col gap-3">
+        <p className="font-mono text-[11px] uppercase tracking-[0.16em] text-faint">For agents</p>
+        <h1 className="font-display text-5xl leading-[1.02] text-ivory sm:text-6xl">Ask the world. Pay over HTTP.</h1>
+        <p className="max-w-2xl text-[15px] leading-relaxed text-stone">
+          This console plays the requester agent. Request a quote to see the x402 handshake, then pay it to post a
+          real bounty to the escrow{net?.isFork ? ' on the local Mainnet fork' : ' on Celo'}.
+        </p>
+      </header>
+
+      <div className="mt-10 grid gap-8 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)]">
+        <section className="flex flex-col gap-6 rounded-3xl border border-line bg-surface p-5 sm:p-6" aria-labelledby="ask-title">
+          <h2 id="ask-title" className="text-lg font-semibold text-ivory">
+            1. Write the question
+          </h2>
+          <div className="flex flex-wrap gap-2">
+            {SAMPLES.map((s) => (
+              <button
+                key={s}
+                type="button"
+                onClick={() => {
+                  setQuestion(s);
+                  reset();
+                }}
+                className={`max-w-full truncate rounded-full border px-3 py-1.5 text-xs transition-colors ${
+                  question === s ? 'border-ivory/60 bg-elevated text-ivory' : 'border-line text-stone hover:text-ivory'
+                }`}
+              >
+                {s}
+              </button>
+            ))}
+          </div>
+          <label className="flex flex-col gap-2">
+            <span className="sr-only">Question</span>
+            <textarea
+              value={question}
+              onChange={(e) => {
+                setQuestion(e.target.value);
+                reset();
+              }}
+              rows={3}
+              maxLength={500}
+              className={`${field} resize-none py-3`}
+              placeholder="A question only someone on the ground can answer."
+            />
+          </label>
+          <p className="text-xs leading-relaxed text-faint">
+            Good questions name a place, a time, and a unit. Vague questions get answers that cannot agree.
+          </p>
+
+          <div className="h-px bg-line" />
+
+          <h2 className="text-lg font-semibold text-ivory">2. Get the price</h2>
+          <button type="button" onClick={() => void quote()} disabled={!question.trim() || busy !== null} className={`${btn.secondary} w-full sm:w-fit`}>
+            {busy === 'quote' ? 'Asking the router...' : 'Request a quote (unpaid)'}
+          </button>
+
+          <AnimatePresence>
+            {terms && (
+              <motion.div
+                initial={reduce ? false : { opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0 }}
+                className="rounded-2xl border border-amber/30 bg-obsidian p-4"
+              >
+                <div className="mb-3 flex items-center gap-2 font-mono text-[12px]">
+                  <span className="rounded bg-amber/10 px-1.5 py-0.5 text-amber">402</span>
+                  <span className="text-stone">Payment Required</span>
+                </div>
+                <Dl
+                  rows={[
+                    ['Price', <span key="p" className="font-mono text-jade">{formatUsdc(terms.amount)} {terms.extra?.name ?? 'USDC'}</span>],
+                    ['Network', <span key="n" className="font-mono text-[13px]">{terms.network}</span>],
+                    ['Pay to', <ChainRef key="pt" value={terms.payTo} kind="address" net={net} />],
+                    ['Scheme', <span key="s" className="font-mono text-[13px]">{terms.scheme} · EIP-3009</span>],
+                  ]}
+                />
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          <div className="h-px bg-line" />
+
+          <h2 className="text-lg font-semibold text-ivory">3. Pay and post</h2>
+          <p className="text-sm leading-relaxed text-stone">
+            The requester agent signs a USDC authorization, retries the request, and the facilitator settles it.
+            The router then escrows the bounty on-chain.
+          </p>
+          <button type="button" onClick={() => void pay()} disabled={!question.trim() || busy !== null} className={`${btn.primary} h-12 w-full`}>
+            {busy === 'pay' ? 'Paying and posting...' : 'Pay $0.05 and post bounty'}
+          </button>
+
+          {error && (
+            <Notice tone="blood" title="Did not go through">
+              {error}
+            </Notice>
+          )}
+
+          <AnimatePresence>
+            {posted && (
+              <motion.div
+                initial={reduce ? false : { opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="flex flex-col gap-4 rounded-2xl border border-jade/40 bg-jade/[0.05] p-4"
+                role="status"
+              >
+                <p className="font-semibold text-jade">Bounty #{posted.bountyId} is live.</p>
+                <Dl
+                  rows={[
+                    ['Escrowed', `$${posted.pricing.chargedUsdc} USDC`],
+                    ['Per answer', `$${posted.pricing.rewardPerResponseUsdc} × ${posted.pricing.responsesRequired}`],
+                    ['Escrow tx', <ChainRef key="e" value={posted.escrowTxHash} kind="tx" net={net} />],
+                    ['Priced by', posted.pricing.quoteSource === 'agentrouter' ? 'hosted model' : 'deterministic rules'],
+                  ]}
+                />
+                <div className="flex flex-wrap gap-2">
+                  <Link href={`/bounties/${posted.bountyId}`} className={btn.primary}>
+                    Watch it live
+                  </Link>
+                  <Link href={`/contribute?bounty=${posted.bountyId}`} className={btn.secondary}>
+                    Answer it
+                  </Link>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </section>
+
+        <aside className="flex flex-col gap-6">
+          <div className="rounded-3xl border border-line p-5 sm:p-6">
+            <Eyebrow className="mb-4">What the $0.05 buys</Eyebrow>
+            <ul className="flex flex-col gap-3 text-sm leading-relaxed text-stone">
+              <li>
+                <span className="text-ivory">Escrow first.</span> The full reward is locked on-chain before anyone works.
+              </li>
+              <li>
+                <span className="text-ivory">Independent answers.</span> One answer per wallet; every answer is a public event.
+              </li>
+              <li>
+                <span className="text-ivory">A verdict, not a vote count.</span> Agreement is paid; outliers and splits are not.
+              </li>
+              <li>
+                <span className="text-ivory">Unused reward comes back.</span> Unfilled and outlier slots refund to the requester.
+              </li>
+            </ul>
+          </div>
+
+          <div className="rounded-3xl border border-line p-5 sm:p-6">
+            <Eyebrow className="mb-4">From your own agent</Eyebrow>
+            <pre className="overflow-x-auto rounded-xl bg-surface p-4 font-mono text-[12px] leading-6 text-stone">
+              <span className="text-faint">{'// npm i @x402/fetch @x402/evm viem'}</span>
+              {'\n'}
+              <span className="text-ivory">const</span> client = <span className="text-ivory">new</span> x402Client(signer);
+              {'\n'}registerExactEvmScheme(client, {'{ signer }'});
+              {'\n'}
+              <span className="text-ivory">const</span> pay = wrapFetchWithPayment(fetch, client);
+              {'\n\n'}
+              <span className="text-ivory">const</span> res = <span className="text-ivory">await</span> pay(
+              {'\n'}  <span className="text-jade">{"'https://<scout>/api/ask?q=...'"}</span>
+              {'\n'});
+              {'\n'}
+              <span className="text-faint">{'// → { bountyId, escrowTxHash }'}</span>
+            </pre>
+            <p className="mt-4 text-xs leading-relaxed text-faint">
+              Read results at <span className="font-mono text-stone">/api/bounties/:id</span>. Scout is an ERC-8004
+              agent; its registration file lives at <span className="font-mono text-stone">/agent-registration.json</span>.
+            </p>
+          </div>
+        </aside>
+      </div>
+    </div>
+  );
+}

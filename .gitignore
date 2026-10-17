@@ -32,6 +32,12 @@ yarn-error.log*
 
 # env files (can opt-in for committing if needed)
 .env*
+# The template holds no secrets and documents every setting.
+!.env.example
+
+# foundry build output
+/contracts/out
+/cache
 
 # vercel
 .vercel

@@ -1,0 +1,12 @@
+[profile.default]
+src = 'contracts/src'
+test = 'contracts/test'
+out = 'contracts/out'
+libs = ['node_modules']
+solc_version = '0.8.26'
+evm_version = 'cancun'
+optimizer = true
+optimizer_runs = 200
+# _settleMemory exceeds the legacy codegen's 16-slot stack limit. The IR
+# pipeline handles it without restructuring the settlement logic.
+via_ir = true

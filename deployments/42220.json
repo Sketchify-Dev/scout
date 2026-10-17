@@ -1,0 +1,20 @@
+{
+  "chainId": 42220,
+  "builderTag": "celo_0107eaa60597",
+  "deployer": "0xf6C95fE38eFbcBdf2Faffa4A21b256033CA84cD5",
+  "owner": "0xf6C95fE38eFbcBdf2Faffa4A21b256033CA84cD5",
+  "verifier": "0xf6C95fE38eFbcBdf2Faffa4A21b256033CA84cD5",
+  "humanRegistry": "0x0000000000000000000000000000000000000000",
+  "ScoutReputation": {
+    "address": "0x29bb83558cd52dc1001dcf76706dccb42f92752f",
+    "txHash": "0xe1051f116dbbeb24544d5cdb676e0cc40d801e0be3809dcf59a0e3e884f2600f",
+    "block": "80216770"
+  },
+  "ScoutEscrow": {
+    "address": "0xfadc702a7c7da1bc1ca0c469c859ffdb5c71f0a6",
+    "txHash": "0xb446e05eec82dd9914a314308c93fc5810332c00025ccb8d4829157069bcd79f",
+    "block": "80216773"
+  },
+  "setWriterTx": "0x8c77821f69e7f4358ef976717a8703082eaa1972ab353836e9f5c79003abaf75",
+  "deployedAt": "2026-10-16T02:25:33.848Z"
+}
