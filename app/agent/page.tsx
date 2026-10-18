@@ -111,7 +111,10 @@ export default function AgentConsole() {
         accepts: Array<{
           scheme: string;
           network: string;
-          maxAmountRequired: string;
+          // V2 routers emit `amount`; v0 called it `maxAmountRequired`.
+          // Reading the wrong field signs value: undefined and the wallet
+          // rejects the typed data, which is exactly what happened.
+          amount: string;
           asset: string;
           payTo: string;
           maxTimeoutSeconds: number;
@@ -131,7 +134,7 @@ export default function AgentConsole() {
       const authorization = {
         from: auth.address,
         to: terms.payTo,
-        value: terms.maxAmountRequired,
+        value: terms.amount,
         validAfter: (nowSec - 600).toString(),
         validBefore: (nowSec + (terms.maxTimeoutSeconds || 300)).toString(),
         nonce,
