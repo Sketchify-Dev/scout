@@ -1,14 +1,6 @@
 import type { NextRequest } from 'next/server';
-import { keccak256, stringToHex } from 'viem';
 import { getConfig } from '@/agents/router/config';
-import { getDecider } from '@/agents/router/decider';
-import { getSigner } from '@/agents/router/signer';
-import {
-  getBountyPrompt,
-  getBountyStatus,
-  getResponseTexts,
-  settleBounty,
-} from '@/agents/router/bounty';
+import { verifyBounty } from '@/agents/router/verifier';
 
 /**
  * POST /api/bounty/<id>/settle - the Verifier agent endpoint.
@@ -24,90 +16,38 @@ export async function POST(
 ) {
   try {
     const { id } = await params;
-    const cfg = getConfig();
-    let bountyId: bigint;
-    try {
-      bountyId = BigInt(id);
-    } catch {
+    const outcome = await verifyBounty(getConfig(), id);
+    if (outcome.result === 'skip' && outcome.skipped === 'Invalid bounty id.') {
       return Response.json({ error: 'Invalid bounty id.' }, { status: 400 });
     }
-
-    const status = await getBountyStatus(cfg, bountyId);
-    if (status.status !== 'Open') {
-      return Response.json(
-        { error: `Bounty ${id} is ${status.status}, nothing to settle.` },
-        { status: 409 },
-      );
+    if (outcome.result === 'skip') {
+      return Response.json({ error: outcome.skipped }, { status: 409 });
     }
-    if (status.responsesReceived === 0) {
-      return Response.json(
-        { settled: false, reason: 'No responses submitted yet.' },
-        { status: 200 },
-      );
-    }
-
-    const { prompt } = await getBountyPrompt(cfg, bountyId);
-    const answers = await getResponseTexts(cfg, bountyId);
-    const byIndex = new Map(answers.map((a) => [a.responseIndex, a]));
-
-    const decider = getDecider(cfg);
-    const verdict = await decider.judge(
-      prompt,
-      answers.map((a) => a.answer),
-    );
-    const answerCards = answers.map((a) => ({
-      responseIndex: a.responseIndex,
-      responder: a.responder,
-      answer: a.answer,
-    }));
-    if (verdict.consensusIndices.length === 0) {
+    if (outcome.result === 'open') {
       return Response.json(
         {
           settled: false,
-          reason: 'No consensus among responses. Bounty left open.',
+          reason: outcome.reason,
           verdict: {
-            confidenceBps: verdict.confidenceBps,
-            summary: verdict.summary,
-            source: verdict.source,
+            confidenceBps: outcome.confidenceBps,
+            summary: outcome.summary,
+            source: outcome.verdictSource,
           },
-          answers: answerCards,
+          answers: outcome.answers,
         },
         { status: 200 },
       );
     }
-
-    const first = byIndex.get(verdict.consensusIndices[0]);
-    if (!first) {
-      return Response.json(
-        { error: 'Verdict references an unknown response index.' },
-        { status: 500 },
-      );
-    }
-    const consensusAnswerHash = keccak256(stringToHex(first.answer));
-
-    const signer = await getSigner(cfg);
-    const txHash = await settleBounty({
-      cfg,
-      signer,
-      bountyId,
-      consensusIndices: verdict.consensusIndices,
-      confidenceBps: verdict.confidenceBps,
-      consensusAnswerHash,
-    });
-
     return Response.json({
       settled: true,
-      bountyId: id,
-      paid: verdict.consensusIndices.map((i) => ({
-        responseIndex: i,
-        responder: byIndex.get(i)?.responder,
-      })),
-      answers: answerCards,
-      confidenceBps: verdict.confidenceBps,
-      summary: verdict.summary,
-      verdictSource: verdict.source,
-      settleTxHash: txHash,
-      builderTag: cfg.builderTag,
+      bountyId: outcome.bountyId,
+      paid: outcome.paid,
+      answers: outcome.answers,
+      confidenceBps: outcome.confidenceBps,
+      summary: outcome.summary,
+      verdictSource: outcome.verdictSource,
+      settleTxHash: outcome.settleTxHash,
+      builderTag: outcome.builderTag,
     });
   } catch (error) {
     return Response.json(
