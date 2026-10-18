@@ -4,6 +4,8 @@ import Link from 'next/link';
 import { useState } from 'react';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { ChainRef, Dl, Eyebrow, Notice, btn, field } from '@/components/ui';
+import { useScoutAuth } from '@/components/auth/ScoutAuth';
+import { useX402Fetch } from '@privy-io/react-auth';
 import { useNetwork } from '@/components/useNetwork';
 import { formatUsdc } from '@/lib/scout';
 
@@ -48,6 +50,8 @@ function decodeTerms(header: string | null): Terms | null {
 
 export default function AgentConsole() {
   const net = useNetwork();
+  const auth = useScoutAuth();
+  const { wrapFetchWithPayment } = useX402Fetch();
   const reduce = useReducedMotion();
   const [question, setQuestion] = useState(SAMPLES[0]);
   const [busy, setBusy] = useState<'quote' | 'pay' | null>(null);
@@ -86,10 +90,15 @@ export default function AgentConsole() {
     setError(null);
     setBusy('pay');
     try {
-      const res = await fetch('/api/requester/ask', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ question: question.trim() }),
+      // No server key configured: pay the 402 directly from the signed-in
+      // embedded wallet (EIP-3009 authorization, no gas, no bridging). The
+      // requester and the router payee are separate wallets by construction.
+      if (!auth.authenticated || !auth.address) {
+        throw new Error('Sign in first. The bounty is paid from your own wallet.');
+      }
+      const paidFetch = wrapFetchWithPayment({ walletAddress: auth.address, fetch });
+      const res = await paidFetch(`/api/ask?q=${encodeURIComponent(question.trim())}`, {
+        method: 'GET',
       });
       const body = (await res.json()) as Posted & { error?: string };
       if (!res.ok) throw new Error(body.error ?? `Request failed (${res.status}).`);
@@ -187,10 +196,17 @@ export default function AgentConsole() {
 
           <h2 className="text-lg font-semibold text-ivory">3. Pay and post</h2>
           <p className="text-sm leading-relaxed text-stone">
-            The requester agent signs a USDC authorization, retries the request, and the facilitator settles it.
-            The router then escrows the bounty on-chain.
+            {auth.authenticated
+              ? 'Your wallet signs a USDC authorization over HTTP. No gas, no bridging, no separate key to fund.'
+              : 'Sign in first. Your wallet signs a USDC authorization over HTTP, so there is no separate key to fund.'}
+            {' '}The facilitator settles it and the router escrows the bounty on-chain.
           </p>
-          <button type="button" onClick={() => void pay()} disabled={!question.trim() || busy !== null} className={`${btn.primary} h-12 w-full`}>
+          {!auth.authenticated && (
+            <Link href="/login?next=%2Fagent" className={`${btn.secondary} w-full sm:w-fit`}>
+              Sign in to post
+            </Link>
+          )}
+          <button type="button" onClick={() => void pay()} disabled={!question.trim() || busy !== null || !auth.authenticated} className={`${btn.primary} h-12 w-full`}>
             {busy === 'pay' ? 'Paying and posting...' : 'Pay $0.05 and post bounty'}
           </button>
 
