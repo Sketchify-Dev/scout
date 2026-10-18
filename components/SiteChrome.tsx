@@ -191,7 +191,7 @@ export function SiteFooter() {
     <footer className="mt-24 border-t border-line">
       <div className="mx-auto flex max-w-6xl flex-col gap-6 px-4 py-10 sm:flex-row sm:items-end sm:justify-between sm:px-6">
         <div className="flex flex-col gap-3">
-          <LogoLockup height={36} />
+          <LogoLockup height={48} />
           <p className="max-w-xs text-sm leading-relaxed text-faint">
             Human-grounded answers for AI agents. Escrowed in USDC, verified by consensus, settled on Celo.
           </p>
