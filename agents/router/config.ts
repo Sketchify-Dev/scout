@@ -24,6 +24,8 @@ export interface RouterConfig {
   /** GitHub owner/repo the builder code was derived from, for the startup check. */
   attributionRepo: string | null;
   facilitatorUrl: string | null;
+  /** API key for the facilitator's key-gated calls (Celo requires it on /settle). */
+  facilitatorApiKey: string | null;
   allowDevBypass: boolean;
   defaultPriceUsdc: string;
   defaultResponses: number;
@@ -108,6 +110,7 @@ export function getConfig(): RouterConfig {
     builderTag,
     attributionRepo,
     facilitatorUrl: process.env.X402_FACILITATOR_URL ?? null,
+    facilitatorApiKey: process.env.X402_API_KEY ?? null,
     allowDevBypass,
     defaultPriceUsdc: process.env.BOUNTY_PRICE_USDC ?? '0.05',
     defaultResponses: Number(process.env.RESPONSES_REQUIRED ?? '3'),

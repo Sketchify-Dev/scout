@@ -45,9 +45,22 @@ async function getHttpServer(cfg: RouterConfig): Promise<x402HTTPResourceServer>
 
 async function buildHttpServer(cfg: RouterConfig): Promise<x402HTTPResourceServer> {
   const network = `eip155:${cfg.chainId}` as Network;
+  // Celo's facilitator leaves /verify and /supported open but gates /settle
+  // behind X-API-Key. The SDK takes auth via createAuthHeaders, keyed by
+  // facilitator path. Without a key everything works until the first real
+  // settlement, which fails 401.
+  const apiKey = cfg.facilitatorApiKey;
   const facilitator = new HTTPFacilitatorClient({
     url: cfg.facilitatorUrl ?? undefined,
     timeoutMs: 30_000,
+    ...(apiKey
+      ? {
+          createAuthHeaders: () => {
+            const headers = { 'X-API-Key': apiKey };
+            return Promise.resolve({ verify: headers, settle: headers, supported: headers });
+          },
+        }
+      : {}),
   });
   const server = new x402ResourceServer(facilitator);
   registerExactEvmScheme(server, { networks: [network] });
