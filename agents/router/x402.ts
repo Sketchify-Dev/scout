@@ -35,7 +35,9 @@ async function getHttpServer(cfg: RouterConfig): Promise<x402HTTPResourceServer>
         'Remove the override or the requester would pay a different asset than the escrow settles.',
     );
   }
-  const key = [cfg.chainId, cfg.payTo, cfg.defaultPriceUsdc, cfg.facilitatorUrl].join('|');
+  // The API key feeds the facilitator client below, so it joins the cache key:
+  // otherwise a key added without a cold start would keep settling anonymously.
+  const key = [cfg.chainId, cfg.payTo, cfg.defaultPriceUsdc, cfg.facilitatorUrl, cfg.facilitatorApiKey ? 'keyed' : 'open'].join('|');
   if (!cachedServer || cachedKey !== key) {
     cachedKey = key;
     cachedServer = buildHttpServer(cfg);
@@ -50,6 +52,14 @@ async function buildHttpServer(cfg: RouterConfig): Promise<x402HTTPResourceServe
   // facilitator path. Without a key everything works until the first real
   // settlement, which fails 401.
   const apiKey = cfg.facilitatorApiKey;
+  // Fail fast with an actionable message: without this, everything works
+  // until the first real settlement, which the facilitator rejects 401.
+  if (!apiKey) {
+    throw new Error(
+      'Missing X402_API_KEY. The Celo facilitator gates /settle behind X-API-Key: ' +
+        'create one at https://x402.celo.org, set X402_API_KEY, and redeploy.',
+    );
+  }
   const facilitator = new HTTPFacilitatorClient({
     url: cfg.facilitatorUrl ?? undefined,
     timeoutMs: 30_000,
