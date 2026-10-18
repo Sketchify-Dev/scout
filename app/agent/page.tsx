@@ -165,8 +165,10 @@ export default function AgentConsole() {
       const paymentHeader = btoa(
         JSON.stringify({
           x402Version: 2,
-          scheme: terms.scheme,
-          network: terms.network,
+          // The v2 payload schema requires the accepted requirements
+          // alongside the signature. Without it the router cannot match the
+          // payment to a quote and answers 402 again.
+          accepted: terms,
           payload: { signature, authorization },
         }),
       );
