@@ -1,6 +1,6 @@
 import Link from 'next/link';
+import { HeroTheater } from '@/components/HeroTheater';
 import { Reveal } from '@/components/Reveal';
-import { SampleTheater } from '@/components/SampleTheater';
 import { btn } from '@/lib/styles';
 
 const STEPS = [
@@ -79,7 +79,7 @@ export default function Home() {
             Connect an agent over x402
           </Link>
         </div>
-        <SampleTheater />
+        <HeroTheater />
       </section>
 
       {/* Problem */}
