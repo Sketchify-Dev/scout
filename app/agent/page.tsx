@@ -107,37 +107,57 @@ export default function AgentConsole() {
       // avoids that and shows one approval, not a nested modal.
       const header = quoteRes.headers.get('payment-required');
       if (!header) throw new Error('The router answered 402 without payment terms.');
-      const { selectPaymentRequirements, preparePaymentHeader, signPaymentHeader } = await import('x402/client');
+      const { selectPaymentRequirements } = await import('x402/client');
       const { accepts } = JSON.parse(atob(header)) as {
         accepts: Parameters<typeof selectPaymentRequirements>[0];
       };
       const terms = selectPaymentRequirements(accepts, undefined, 'exact');
-      const unsigned = preparePaymentHeader(auth.address, 2, terms);
-      // The v0 signer interface needs only address + signTypedData, which
-      // the embedded wallet provides through Privy's hook.
-      const signer = {
-        address: auth.address,
-        signTypedData: async (data: {
-          domain: Record<string, unknown>;
-          types: Record<string, unknown>;
-          primaryType: string;
-          message: Record<string, unknown>;
-        }) => {
-          const { signature } = await signTypedData(
-            {
-              domain: data.domain as never,
-              types: data.types as never,
-              primaryType: data.primaryType,
-              message: data.message as never,
-            },
-            { address: auth.address ?? undefined },
-          );
-          return signature;
-        },
+      // The installed x402 v0 client predates Celo support and rejects
+      // eip155:42220 in its network table. The EIP-3009 authorization is
+      // chain-agnostic typed data, so sign it directly with the embedded
+      // wallet and build the v2 envelope by hand: same bytes the SDK would
+      // produce, without its network allowlist.
+      const nonce = `0x${[...crypto.getRandomValues(new Uint8Array(32))].map((b) => b.toString(16).padStart(2, '0')).join('')}`;
+      const nowSec = Math.floor(Date.now() / 1000);
+      const authorization = {
+        from: auth.address,
+        to: terms.payTo,
+        value: terms.maxAmountRequired,
+        validAfter: (nowSec - 600).toString(),
+        validBefore: (nowSec + (terms.maxTimeoutSeconds || 300)).toString(),
+        nonce,
       };
-      // signPaymentHeader already returns the base64 envelope the router
-      // verifies against the facilitator. Send it as the X-PAYMENT header.
-      const paymentHeader = await signPaymentHeader(signer as never, terms, unsigned);
+      const { signature } = await signTypedData(
+        {
+          domain: {
+            name: (terms.extra as { name?: string } | undefined)?.name ?? 'USDC',
+            version: (terms.extra as { version?: string } | undefined)?.version ?? '2',
+            chainId: 42220,
+            verifyingContract: terms.asset,
+          } as never,
+          types: {
+            TransferWithAuthorization: [
+              { name: 'from', type: 'address' },
+              { name: 'to', type: 'address' },
+              { name: 'value', type: 'uint256' },
+              { name: 'validAfter', type: 'uint256' },
+              { name: 'validBefore', type: 'uint256' },
+              { name: 'nonce', type: 'bytes32' },
+            ],
+          } as never,
+          primaryType: 'TransferWithAuthorization',
+          message: authorization as never,
+        },
+        { address: auth.address ?? undefined },
+      );
+      const paymentHeader = btoa(
+        JSON.stringify({
+          x402Version: 2,
+          scheme: terms.scheme,
+          network: terms.network,
+          payload: { signature, authorization },
+        }),
+      );
       const paidRes = await fetch(`/api/ask?q=${encodeURIComponent(question.trim())}`, {
         method: 'GET',
         headers: { 'X-PAYMENT': paymentHeader },
