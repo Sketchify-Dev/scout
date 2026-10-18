@@ -102,16 +102,25 @@ export default function AgentConsole() {
         throw new Error(body.error ?? `Expected a 402 quote, got HTTP ${quoteRes.status}.`);
       }
       // This router puts the terms in the PAYMENT-REQUIRED header with an
-      // empty JSON body, so select from the header explicitly. Privy's
-      // wrapper parses the body instead and crashes on it; manual signing
-      // avoids that and shows one approval, not a nested modal.
+      // empty JSON body, so select from the header explicitly. Every x402
+      // SDK helper in the dependency tree rejects Celo in its network table,
+      // so the three-line local selection below replaces selectPaymentRequirements.
       const header = quoteRes.headers.get('payment-required');
       if (!header) throw new Error('The router answered 402 without payment terms.');
-      const { selectPaymentRequirements } = await import('x402/client');
       const { accepts } = JSON.parse(atob(header)) as {
-        accepts: Parameters<typeof selectPaymentRequirements>[0];
+        accepts: Array<{
+          scheme: string;
+          network: string;
+          maxAmountRequired: string;
+          asset: string;
+          payTo: string;
+          maxTimeoutSeconds: number;
+          extra?: { name?: string; version?: string };
+        }>;
       };
-      const terms = selectPaymentRequirements(accepts, undefined, 'exact');
+      const exact = accepts.filter((a) => a.scheme === 'exact');
+      const terms = exact.find((a) => a.network === 'eip155:42220') ?? exact[0];
+      if (!terms) throw new Error('The router offered no exact-scheme payment terms.');
       // The installed x402 v0 client predates Celo support and rejects
       // eip155:42220 in its network table. The EIP-3009 authorization is
       // chain-agnostic typed data, so sign it directly with the embedded
