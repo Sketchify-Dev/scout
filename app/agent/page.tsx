@@ -139,29 +139,30 @@ export default function AgentConsole() {
         validBefore: (nowSec + (terms.maxTimeoutSeconds || 300)).toString(),
         nonce,
       };
-      const { signature } = await signTypedData(
-        {
-          domain: {
-            name: (terms.extra as { name?: string } | undefined)?.name ?? 'USDC',
-            version: (terms.extra as { version?: string } | undefined)?.version ?? '2',
-            chainId: 42220,
-            verifyingContract: terms.asset,
-          } as never,
-          types: {
-            TransferWithAuthorization: [
-              { name: 'from', type: 'address' },
-              { name: 'to', type: 'address' },
-              { name: 'value', type: 'uint256' },
-              { name: 'validAfter', type: 'uint256' },
-              { name: 'validBefore', type: 'uint256' },
-              { name: 'nonce', type: 'bytes32' },
-            ],
-          } as never,
-          primaryType: 'TransferWithAuthorization',
-          message: authorization as never,
-        },
-        { address: auth.address ?? undefined },
-      );
+      // The hook defaults to the HD-index-0 wallet; the address option is
+      // only for imported or multiple wallets. Passing it for a standard
+      // embedded wallet makes the iframe look up a wallet entry that does
+      // not exist, which fails inside the modal after it renders.
+      const { signature } = await signTypedData({
+        domain: {
+          name: (terms.extra as { name?: string } | undefined)?.name ?? 'USDC',
+          version: (terms.extra as { version?: string } | undefined)?.version ?? '2',
+          chainId: 42220,
+          verifyingContract: terms.asset,
+        } as never,
+        types: {
+          TransferWithAuthorization: [
+            { name: 'from', type: 'address' },
+            { name: 'to', type: 'address' },
+            { name: 'value', type: 'uint256' },
+            { name: 'validAfter', type: 'uint256' },
+            { name: 'validBefore', type: 'uint256' },
+            { name: 'nonce', type: 'bytes32' },
+          ],
+        } as never,
+        primaryType: 'TransferWithAuthorization',
+        message: authorization as never,
+      });
       const paymentHeader = btoa(
         JSON.stringify({
           x402Version: 2,
