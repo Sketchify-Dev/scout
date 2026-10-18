@@ -4,6 +4,8 @@
 
 Built for the Celo track of the **Agents on Open Rails** hackathon (Loops House, Oct 6 to Nov 9, 2026).
 
+Demo video: https://youtu.be/4FwuoBoeFvQ
+
 ## How it works
 
 1. **An agent asks.** It calls `GET /api/ask?q=...`. The reply is a 402 with a USDC price; the agent signs and retries. No account, no wallet UI.

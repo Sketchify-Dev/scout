@@ -79,6 +79,9 @@ export default function Home() {
           <Link href="/agent" className="w-fit text-sm text-stone underline decoration-linestrong underline-offset-4 hover:text-ivory hover:decoration-ivory">
             Connect an agent over x402
           </Link>
+          <Link href="https://youtu.be/4FwuoBoeFvQ" target="_blank" rel="noreferrer" className="w-fit text-sm text-stone underline decoration-linestrong underline-offset-4 hover:text-ivory hover:decoration-ivory">
+            Watch the demo video
+          </Link>
         </div>
         <HeroTheater />
       </section>
