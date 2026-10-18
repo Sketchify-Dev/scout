@@ -86,10 +86,10 @@ self-dealing.
 - [ ] Enrolled via Enroll now; marker issued; marker wired into frontend wallet
       client and router backend before the first countable action.
 - [ ] ERC-8021 attribution via `@celo/attribution-tags`: `withAttribution`
-      on the router's wallet client tags every router transaction. Before the
-      first bounty: set ATTRIBUTION_REPO to the GitHub slug registered with
-      Loops House (startup check that the code matches), then decode the first
-      Mainnet bounty tx with `verifyTx` and confirm `celo_0107eaa60597`.
+      on the router's wallet client tags every router transaction. Our code
+      `celo_0107eaa60597` is platform-assigned by Loops House, not derived
+      from the repo slug, so ATTRIBUTION_REPO stays unset. Before the first
+      bounty: decode a Mainnet bounty tx with `verifyTx` and confirm the tag.
       (An earlier note here claimed `data-divvi-tag` button attributes were
       required. BUILDERS.md has no such mechanism; they were removed.)
 - [ ] Full loop working on Celo Sepolia: requester agent -> router (x402) ->
