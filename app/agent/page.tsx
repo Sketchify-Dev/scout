@@ -5,7 +5,7 @@ import { useState } from 'react';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { ChainRef, Dl, Eyebrow, Notice, btn, field } from '@/components/ui';
 import { useScoutAuth } from '@/components/auth/ScoutAuth';
-import { useX402Fetch } from '@privy-io/react-auth';
+import { useSignTypedData } from '@privy-io/react-auth';
 import { useNetwork } from '@/components/useNetwork';
 import { formatUsdc } from '@/lib/scout';
 
@@ -51,7 +51,7 @@ function decodeTerms(header: string | null): Terms | null {
 export default function AgentConsole() {
   const net = useNetwork();
   const auth = useScoutAuth();
-  const { wrapFetchWithPayment } = useX402Fetch();
+  const { signTypedData } = useSignTypedData();
   const reduce = useReducedMotion();
   const [question, setQuestion] = useState(SAMPLES[0]);
   const [busy, setBusy] = useState<'quote' | 'pay' | null>(null);
@@ -96,12 +96,54 @@ export default function AgentConsole() {
       if (!auth.authenticated || !auth.address) {
         throw new Error('Sign in first. The bounty is paid from your own wallet.');
       }
-      const paidFetch = wrapFetchWithPayment({ walletAddress: auth.address, fetch });
-      const res = await paidFetch(`/api/ask?q=${encodeURIComponent(question.trim())}`, {
+      const quoteRes = await fetch(`/api/ask?q=${encodeURIComponent(question.trim())}`);
+      if (quoteRes.status !== 402) {
+        const body = (await quoteRes.json().catch(() => ({}))) as { error?: string };
+        throw new Error(body.error ?? `Expected a 402 quote, got HTTP ${quoteRes.status}.`);
+      }
+      // This router puts the terms in the PAYMENT-REQUIRED header with an
+      // empty JSON body, so select from the header explicitly. Privy's
+      // wrapper parses the body instead and crashes on it; manual signing
+      // avoids that and shows one approval, not a nested modal.
+      const header = quoteRes.headers.get('payment-required');
+      if (!header) throw new Error('The router answered 402 without payment terms.');
+      const { selectPaymentRequirements, preparePaymentHeader, signPaymentHeader } = await import('x402/client');
+      const { accepts } = JSON.parse(atob(header)) as {
+        accepts: Parameters<typeof selectPaymentRequirements>[0];
+      };
+      const terms = selectPaymentRequirements(accepts, undefined, 'exact');
+      const unsigned = preparePaymentHeader(auth.address, 2, terms);
+      // The v0 signer interface needs only address + signTypedData, which
+      // the embedded wallet provides through Privy's hook.
+      const signer = {
+        address: auth.address,
+        signTypedData: async (data: {
+          domain: Record<string, unknown>;
+          types: Record<string, unknown>;
+          primaryType: string;
+          message: Record<string, unknown>;
+        }) => {
+          const { signature } = await signTypedData(
+            {
+              domain: data.domain as never,
+              types: data.types as never,
+              primaryType: data.primaryType,
+              message: data.message as never,
+            },
+            { address: auth.address ?? undefined },
+          );
+          return signature;
+        },
+      };
+      // signPaymentHeader already returns the base64 envelope the router
+      // verifies against the facilitator. Send it as the X-PAYMENT header.
+      const paymentHeader = await signPaymentHeader(signer as never, terms, unsigned);
+      const paidRes = await fetch(`/api/ask?q=${encodeURIComponent(question.trim())}`, {
         method: 'GET',
+        headers: { 'X-PAYMENT': paymentHeader },
       });
-      const body = (await res.json()) as Posted & { error?: string };
-      if (!res.ok) throw new Error(body.error ?? `Request failed (${res.status}).`);
+      const body = (await paidRes.json()) as Posted & { error?: string };
+      if (!paidRes.ok) throw new Error(body.error ?? `Request failed (${paidRes.status}).`);
       setPosted(body);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Posting failed.');
