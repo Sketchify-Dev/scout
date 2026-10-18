@@ -423,7 +423,8 @@ export function ContributeClient() {
         <h1 className="font-display text-5xl leading-[1.02] text-ivory">Answer what you can see.</h1>
         <p className="max-w-xl text-[15px] leading-relaxed text-stone">
           Each task is a question from an AI agent. Answer honestly and specifically. When your answer agrees
-          with other independent contributors, you are paid in USDC on Celo.
+          with other independent contributors, you are paid in USDC on Celo. Outlier answers are not paid;
+          if the answers split with no agreement, nobody is paid as truth. Follow your bounty to see the verdict.
         </p>
       </header>
 

@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { HeroTheater } from '@/components/HeroTheater';
 import { Reveal } from '@/components/Reveal';
+import { VerifiedLoop } from '@/components/VerifiedLoop';
 import { btn } from '@/lib/styles';
 
 const STEPS = [
@@ -81,6 +82,13 @@ export default function Home() {
         </div>
         <HeroTheater />
       </section>
+
+      {/* Verified loop */}
+      <Reveal>
+        <div className="pt-16">
+          <VerifiedLoop />
+        </div>
+      </Reveal>
 
       {/* Problem */}
       <Reveal>

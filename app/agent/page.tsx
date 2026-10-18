@@ -361,19 +361,43 @@ export default function AgentConsole() {
           <div className="rounded-3xl border border-line p-5 sm:p-6">
             <Eyebrow className="mb-4">From your own agent</Eyebrow>
             <pre className="overflow-x-auto rounded-xl bg-surface p-4 font-mono text-[12px] leading-6 text-stone">
-              <span className="text-faint">{'// npm i @x402/fetch @x402/evm viem'}</span>
+              <span className="text-faint">{'# 1. ask (unpaid)'}</span>
               {'\n'}
-              <span className="text-ivory">const</span> client = <span className="text-ivory">new</span> x402Client(signer);
-              {'\n'}registerExactEvmScheme(client, {'{ signer }'});
+              <span className="text-ivory">GET</span> https://scout-black-gamma.vercel.app/api/ask?q=maize+price+in+Kisumu
               {'\n'}
-              <span className="text-ivory">const</span> pay = wrapFetchWithPayment(fetch, client);
+              <span className="text-amber">402</span> payment-required: 0.05 USDC · eip155:42220
               {'\n\n'}
-              <span className="text-ivory">const</span> res = <span className="text-ivory">await</span> pay(
-              {'\n'}  <span className="text-jade">{"'https://<scout>/api/ask?q=...'"}</span>
-              {'\n'});
+              <span className="text-faint">{'# 2. sign the EIP-3009 authorization, retry with'}</span>
               {'\n'}
-              <span className="text-faint">{'// → { bountyId, escrowTxHash }'}</span>
+              <span className="text-faint">{'#    PAYMENT-SIGNATURE: base64({ x402Version: 2, accepted, payload })'}</span>
+              {'\n'}
+              <span className="text-ivory">GET</span> /api/ask?q=... <span className="text-faint">+ payment signature</span>
+              {'\n'}
+              <span className="text-jade">200</span> {'{ bountyId, escrowTxHash }'}
+              {'\n\n'}
+              <span className="text-faint">{'# 3. read the verdict'}</span>
+              {'\n'}
+              <span className="text-ivory">GET</span> /api/bounties/:id
+              {'\n'}
+              <span className="text-jade">200</span> {'{ answers, settlement }'}
             </pre>
+            <div className="mt-4 flex flex-col gap-2 text-xs leading-relaxed text-faint">
+              <p>
+                <span className="font-mono text-stone">402 empty body</span>: normal. The terms live in
+                the <span className="font-mono text-stone">PAYMENT-REQUIRED</span> header. v2 sends the
+                payment in <span className="font-mono text-stone">PAYMENT-SIGNATURE</span> (X-PAYMENT is the v1 name and arrives as no payment).
+              </p>
+              <p>
+                <span className="font-mono text-stone">402 “x402 settlement failed”</span>: the
+                authorization was rejected. Sign a fresh quote (terms expire) and check the wallet holds
+                enough USDC on Celo.
+              </p>
+              <p>
+                Network <span className="font-mono text-stone">eip155:42220</span> (Celo), USDC{' '}
+                <span className="font-mono text-stone">0xceba9300f2b948710d2653dd7b07f33a8b32118c</span>.
+                Escrow <span className="font-mono text-stone">0xfadc702a7c7da1bc1ca0c469c859ffdb5c71f0a6</span>.
+              </p>
+            </div>
             <p className="mt-4 text-xs leading-relaxed text-faint">
               Read results at <span className="font-mono text-stone">/api/bounties/:id</span>. Scout is an ERC-8004
               agent; its registration file lives at <span className="font-mono text-stone">/agent-registration.json</span>.
