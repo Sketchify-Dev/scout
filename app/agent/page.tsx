@@ -37,14 +37,15 @@ interface Posted {
   };
 }
 
-/** x402 v2 puts the terms in the PAYMENT-REQUIRED header as base64 JSON. */
-function decodeTerms(header: string | null): Terms | null {
-  if (!header) return null;
+/** x402 v2 puts the terms in the PAYMENT-REQUIRED header as base64 JSON.
+ * On a rejected payment the same header carries the reason in `error`. */
+function decodeTerms(header: string | null): { terms: Terms | null; error: string | null } {
+  if (!header) return { terms: null, error: null };
   try {
-    const parsed = JSON.parse(atob(header)) as { accepts?: Terms[] };
-    return parsed.accepts?.[0] ?? null;
+    const parsed = JSON.parse(atob(header)) as { accepts?: Terms[]; error?: string };
+    return { terms: parsed.accepts?.[0] ?? null, error: parsed.error ?? null };
   } catch {
-    return null;
+    return { terms: null, error: null };
   }
 }
 
@@ -75,7 +76,7 @@ export default function AgentConsole() {
         const body = (await res.json().catch(() => ({}))) as { error?: string };
         throw new Error(body.error ?? `Expected a 402 quote, got HTTP ${res.status}.`);
       }
-      const t = decodeTerms(res.headers.get('payment-required'));
+      const { terms: t } = decodeTerms(res.headers.get('payment-required'));
       if (!t) throw new Error('The router answered 402 but the payment terms could not be read.');
       setTerms(t);
     } catch (e) {
@@ -131,11 +132,15 @@ export default function AgentConsole() {
       // produce, without its network allowlist.
       const nonce = `0x${[...crypto.getRandomValues(new Uint8Array(32))].map((b) => b.toString(16).padStart(2, '0')).join('')}`;
       const nowSec = Math.floor(Date.now() / 1000);
+      // validAfter must be strictly in the past: the token contract
+      // rejects authorizations whose start time has not arrived yet, and an
+      // exact-now timestamp can land on the wrong side of block time.
+      const validAfter = (nowSec - 60).toString();
       const authorization = {
         from: auth.address,
         to: terms.payTo,
         value: terms.amount,
-        validAfter: (nowSec - 600).toString(),
+        validAfter,
         validBefore: (nowSec + (terms.maxTimeoutSeconds || 300)).toString(),
         nonce,
       };
@@ -173,12 +178,23 @@ export default function AgentConsole() {
           payload: { signature, authorization },
         }),
       );
+      // v2 carries the payment in PAYMENT-SIGNATURE. X-PAYMENT is the v1
+      // name: the server's extractPayment only reads payment-signature, so a
+      // v1 header arrives as no payment at all and the router answers 402
+      // again with a fresh quote. That was the persistent 402.
       const paidRes = await fetch(`/api/ask?q=${encodeURIComponent(question.trim())}`, {
         method: 'GET',
-        headers: { 'X-PAYMENT': paymentHeader },
+        headers: { 'PAYMENT-SIGNATURE': paymentHeader },
       });
       const body = (await paidRes.json()) as Posted & { error?: string };
-      if (!paidRes.ok) throw new Error(body.error ?? `Request failed (${paidRes.status}).`);
+      if (!paidRes.ok) {
+        // v2 error responses carry the verify reason (e.g. the facilitator's
+        // invalidReason) in the PAYMENT-REQUIRED header's `error` field; the
+        // JSON body is empty by design. Surface it so a rejection explains
+        // itself instead of failing silently.
+        const { error: routerReason } = decodeTerms(paidRes.headers.get('payment-required'));
+        throw new Error(routerReason ?? body.error ?? `Request failed (${paidRes.status}).`);
+      }
       setPosted(body);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Posting failed.');
