@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Suspense, useState } from 'react';
+import { Suspense, useEffect, useRef, useState } from 'react';
 import { useScoutAuth } from '@/components/auth/ScoutAuth';
 import { CurrencySwitch } from '@/components/CurrencySwitch';
 import { LogoLockup } from '@/components/Logo';
@@ -37,6 +37,26 @@ function Account() {
   const [open, setOpen] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [exportError, setExportError] = useState<string | null>(null);
+  const root = useRef<HTMLDivElement>(null);
+  const trigger = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    const onDown = (e: PointerEvent) => {
+      if (root.current && !root.current.contains(e.target as Node)) setOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setOpen(false);
+        trigger.current?.focus();
+      }
+    };
+    document.addEventListener('pointerdown', onDown);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('pointerdown', onDown);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [open ]);
   if (!auth.enabled) return null;
   if (!auth.ready) return <span className="h-9 w-20 animate-pulse rounded-full bg-elevated" aria-hidden />;
   if (!auth.authenticated) {
@@ -61,8 +81,9 @@ function Account() {
     }
   };
   return (
-    <div className="relative">
+    <div ref={root} className="relative">
       <button
+        ref={trigger}
         type="button"
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}

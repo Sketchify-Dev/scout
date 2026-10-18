@@ -3,7 +3,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { AnimatePresence, animate, motion, useMotionValue, useReducedMotion, useTransform } from 'framer-motion';
 import { ChainRef, Eyebrow, btn } from '@/components/ui';
-import { formatUsdc, shortAddr, type NetworkInfo } from '@/lib/scout';
+import { Money } from '@/components/Currency';
+import { shortAddr, type NetworkInfo } from '@/lib/scout';
 
 export interface TheaterAnswer {
   responseIndex: number;
@@ -163,7 +164,7 @@ function TheaterBody({
                           transition={{ duration: 0.35, ease: EASE, delay: reduce ? 0 : i * 0.08 }}
                           className={paid ? 'text-jade' : 'text-blood'}
                         >
-                          {paid ? `paid ${formatUsdc(rewardPerResponse)} USDC` : 'not paid · outlier'}
+                          {paid ? (<span>paid <Money baseUnits={rewardPerResponse} per="USDC" /></span>) : 'not paid · outlier'}
                         </motion.span>
                       ) : (
                         <motion.span key="pending" className="text-faint" exit={{ opacity: 0 }}>

@@ -7,7 +7,7 @@ import { ChainRef, Dl, Eyebrow, Notice, btn, field } from '@/components/ui';
 import { useScoutAuth } from '@/components/auth/ScoutAuth';
 import { useSignTypedData } from '@privy-io/react-auth';
 import { useNetwork } from '@/components/useNetwork';
-import { formatUsdc } from '@/lib/scout';
+import { Money } from '@/components/Currency';
 
 const SAMPLES = [
   'What is maize selling for per kg in Kisumu market today?',
@@ -275,7 +275,7 @@ export default function AgentConsole() {
                 </div>
                 <Dl
                   rows={[
-                    ['Price', <span key="p" className="font-mono text-jade">{formatUsdc(terms.amount)} {terms.extra?.name ?? 'USDC'}</span>],
+                    ['Price', <Money key="p" baseUnits={terms.amount} per={terms.extra?.name ?? 'USDC'} className="font-mono text-jade" />],
                     ['Network', <span key="n" className="font-mono text-[13px]">{terms.network}</span>],
                     ['Pay to', <ChainRef key="pt" value={terms.payTo} kind="address" net={net} />],
                     ['Scheme', <span key="s" className="font-mono text-[13px]">{terms.scheme} · EIP-3009</span>],
@@ -300,7 +300,7 @@ export default function AgentConsole() {
             </Link>
           )}
           <button type="button" onClick={() => void pay()} disabled={!question.trim() || busy !== null || !auth.authenticated} className={`${btn.primary} h-12 w-full`}>
-            {busy === 'pay' ? 'Paying and posting...' : 'Pay $0.05 and post bounty'}
+            {busy === 'pay' ? 'Paying and posting...' : (<span>Pay <Money baseUnits="50000" /> and post bounty</span>)}
           </button>
 
           {error && (
@@ -320,8 +320,8 @@ export default function AgentConsole() {
                 <p className="font-semibold text-jade">Bounty #{posted.bountyId} is live.</p>
                 <Dl
                   rows={[
-                    ['Escrowed', `$${posted.pricing.chargedUsdc} USDC`],
-                    ['Per answer', `$${posted.pricing.rewardPerResponseUsdc} × ${posted.pricing.responsesRequired}`],
+                    ['Escrowed', <Money key="e" baseUnits={Math.round(Number(posted.pricing.chargedUsdc) * 1e6)} per="USDC" />],
+                    ['Per answer', <span key="pa"><Money baseUnits={Math.round(Number(posted.pricing.rewardPerResponseUsdc) * 1e6)} /> × {posted.pricing.responsesRequired}</span>],
                     ['Escrow tx', <ChainRef key="e" value={posted.escrowTxHash} kind="tx" net={net} />],
                     ['Priced by', posted.pricing.quoteSource === 'agentrouter' ? 'hosted model' : 'deterministic rules'],
                   ]}
