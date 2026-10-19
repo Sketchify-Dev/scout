@@ -40,6 +40,34 @@ function CountUp({ to }: { to: number }) {
   return <motion.span className="tabular-nums">{text}</motion.span>;
 }
 
+/** Long answers clamp to five lines with a More/Less toggle, so one
+ *  essay cannot stretch its card past the layout. Full text stays one tap
+ *  away and wraps instead of overflowing. */
+function AnswerText({ text, struck }: { text: string; struck: boolean }) {
+  const [open, setOpen] = useState(false);
+  const long = text.length > 220;
+  return (
+    <div className="mt-1.5 min-w-0">
+      <p
+        className={`${!open && long ? 'line-clamp-5' : ''} break-words text-[17px] text-ivory ${
+          struck ? 'line-through decoration-blood/50' : ''
+        }`}
+      >
+        {text}
+      </p>
+      {long && (
+        <button
+          type="button"
+          onClick={() => setOpen((v) => !v)}
+          className="mt-1 text-xs text-faint underline underline-offset-2 transition-colors hover:text-ivory"
+        >
+          {open ? 'Show less' : 'Show more'}
+        </button>
+      )}
+    </div>
+  );
+}
+
 type Stage = 'answers' | 'compare' | 'verdict';
 
 interface TheaterProps {
@@ -122,9 +150,9 @@ function TheaterBody({
         )}
       </div>
 
-      <div className="grid gap-8 p-5 sm:p-6 lg:grid-cols-[1.1fr_1fr]">
+      <div className="grid gap-8 p-5 sm:p-6 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)]">
         {/* Left: the answers, as they arrived */}
-        <div>
+        <div className="min-w-0">
           <h3 id="theater-title" className="sr-only">
             Answers and verdict
           </h3>
@@ -173,9 +201,7 @@ function TheaterBody({
                       )}
                     </AnimatePresence>
                   </div>
-                  <p className={`mt-1.5 text-[17px] text-ivory ${judged && !paid ? 'line-through decoration-blood/50' : ''}`}>
-                    {a.answer}
-                  </p>
+                  <AnswerText text={a.answer} struck={judged && !paid} />
                 </motion.li>
               );
             })}
@@ -183,7 +209,7 @@ function TheaterBody({
         </div>
 
         {/* Right: distribution and verdict */}
-        <div className="flex flex-col gap-6">
+        <div className="flex min-w-0 flex-col gap-6">
           <div>
             <Eyebrow className="mb-3">Agreement</Eyebrow>
             <div className="flex h-2.5 w-full overflow-hidden rounded-full bg-elevated" role="img" aria-label={groups.map((g) => `${g.label}: ${g.members.length}`).join(', ')}>
@@ -205,7 +231,7 @@ function TheaterBody({
             <ul className="mt-3 flex flex-col gap-1.5">
               {groups.map((g) => (
                 <li key={g.label} className="flex items-baseline justify-between gap-4 text-sm">
-                  <span className="truncate text-stone">{g.label}</span>
+                  <span className="min-w-0 flex-1 truncate text-stone">{g.label}</span>
                   <span className="shrink-0 font-mono text-[12px] text-faint">
                     {g.members.length} of {total}
                   </span>
