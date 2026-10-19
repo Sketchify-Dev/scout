@@ -14,7 +14,7 @@ const AUTO_AFTER_SECONDS = Number(process.env.AUTO_SETTLE_AFTER_SECONDS ?? '1440
 const MAX_PER_TICK = 5;
 
 /**
- * GET /api/cron/auto-settle - hourly verifier sweep (Vercel Cron).
+ * GET /api/cron/auto-settle - daily verifier sweep (Vercel Cron).
  *
  * For every Open bounty past deadline + AUTO_SETTLE_AFTER_SECONDS with at
  * least one answer, run the same verifyBounty the manual button uses:
