@@ -7,8 +7,10 @@ import {
   useCreateWallet,
   useExportWallet,
   useLogout,
+  useMfaEnrollment,
   usePrivy,
   useSendTransaction,
+  useSetWalletRecovery,
   useWallets,
 } from '@privy-io/react-auth';
 import { toDataSuffix } from '@celo/attribution-tags';
@@ -80,6 +82,16 @@ export interface ScoutAuth {
    */
   exportWallet: () => Promise<void>;
   /**
+   * Wallet recovery password (Privy-hosted): protects the encrypted key
+   * backup so a stolen login alone cannot restore the wallet elsewhere.
+   * Runs in a Privy modal; Scout never sees the password.
+   */
+  setWalletPassword: () => Promise<void>;
+  /** MFA methods enrolled on this account (sms, totp, passkey). */
+  mfaMethods: Array<'sms' | 'totp' | 'passkey'>;
+  /** Open Privy's MFA enrollment modal (TOTP authenticator or SMS). */
+  enrollMfa: () => void;
+  /**
    * Send USDC from the person's own wallet to any address. Self-custody: the
    * embedded wallet signs, Scout only relays. Carries the builder tag like
    * every other transaction.
@@ -103,6 +115,13 @@ const DISABLED: ScoutAuth = {
   exportWallet: async () => {
     throw new Error('Login is not configured on this deployment.');
   },
+  setWalletPassword: async () => {
+    throw new Error('Login is not configured on this deployment.');
+  },
+  mfaMethods: [],
+  enrollMfa: () => {
+    throw new Error('Login is not configured on this deployment.');
+  },
   sendUsdc: async () => {
     throw new Error('Login is not configured on this deployment.');
   },
@@ -117,6 +136,9 @@ function Bridge({ children }: { children: React.ReactNode }) {
   const { exportWallet } = useExportWallet();
   const { sendTransaction } = useSendTransaction();
   const { createWallet } = useCreateWallet();
+  const { setWalletRecovery } = useSetWalletRecovery();
+  const { showMfaEnrollmentModal } = useMfaEnrollment();
+  const mfaMethods = (user?.mfaMethods ?? []) as Array<'sms' | 'totp' | 'passkey'>;
 
   // Prefer the Privy embedded wallet: it is the one created for this person.
   // createOnLogin should have made one already; if auth completed before the
@@ -139,6 +161,16 @@ function Bridge({ children }: { children: React.ReactNode }) {
     if (!address) throw new Error('Sign in first.');
     await exportWallet({ address });
   }, [address, exportWallet]);
+
+  const setWalletPassword = useCallback(async () => {
+    if (!address) throw new Error('Sign in first.');
+    await setWalletRecovery();
+  }, [address, setWalletRecovery]);
+
+  const enrollMfa = useCallback(() => {
+    if (!address) throw new Error('Sign in first.');
+    showMfaEnrollmentModal();
+  }, [address, showMfaEnrollmentModal]);
 
   const submitAnswer = useCallback(
     async (bountyId: string, answer: string) => {
@@ -213,8 +245,11 @@ function Bridge({ children }: { children: React.ReactNode }) {
       claimRewards,
       exportWallet: doExportWallet,
       sendUsdc,
+      setWalletPassword,
+      mfaMethods,
+      enrollMfa,
     }),
-    [ready, authenticated, address, identity, logout, submitAnswer, claimRewards, doExportWallet, sendUsdc],
+    [ready, authenticated, address, identity, logout, submitAnswer, claimRewards, doExportWallet, sendUsdc, setWalletPassword, mfaMethods, enrollMfa],
   );
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }

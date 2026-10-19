@@ -6,6 +6,7 @@ import { Suspense, useEffect, useRef, useState } from 'react';
 import { useScoutAuth } from '@/components/auth/ScoutAuth';
 import { CurrencySwitch } from '@/components/CurrencySwitch';
 import { LogoLockup } from '@/components/Logo';
+import { ThemeToggle, useTheme } from '@/components/Theme';
 import { CopyButton } from '@/components/ui';
 import { useNetwork } from '@/components/useNetwork';
 import { shortAddr } from '@/lib/scout';
@@ -163,7 +164,7 @@ function HeaderInner() {
     <header className="sticky top-0 z-30 border-b border-line bg-obsidian/85 backdrop-blur-md supports-[backdrop-filter]:bg-obsidian/70">
       <div className="mx-auto flex h-16 max-w-6xl items-center gap-6 px-4 sm:px-6">
         <Link href="/" className="flex items-center rounded focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ivory" aria-label="Scout home">
-          <LogoLockup height={48} />
+          <HeaderLockup />
         </Link>
         <nav className="hidden items-center gap-1 md:flex" aria-label="Main">
           {NAV.map((n) => {
@@ -183,6 +184,7 @@ function HeaderInner() {
           })}
         </nav>
         <div className="ml-auto flex items-center gap-3">
+          <ThemeToggle />
           <CurrencySwitch />
           <NetworkPill />
           <Account />
@@ -207,12 +209,22 @@ function HeaderInner() {
   );
 }
 
+function HeaderLockup() {
+  const { theme } = useTheme();
+  return <LogoLockup height={48} variant={theme === 'dark' ? 'dark' : 'light'} />;
+}
+
+function FooterLockup() {
+  const { theme } = useTheme();
+  return <LogoLockup height={48} variant={theme === 'dark' ? 'dark' : 'light'} />;
+}
+
 export function SiteFooter() {
   return (
     <footer className="mt-24 border-t border-line">
       <div className="mx-auto flex max-w-6xl flex-col gap-6 px-4 py-10 sm:flex-row sm:items-end sm:justify-between sm:px-6">
         <div className="flex flex-col gap-3">
-          <LogoLockup height={48} />
+          <FooterLockup />
           <p className="max-w-xs text-sm leading-relaxed text-faint">
             Human-grounded answers for AI agents. Escrowed in USDC, verified by consensus, settled on Celo.
           </p>

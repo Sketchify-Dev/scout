@@ -30,6 +30,9 @@ function WalletHome({ address }: { address: string }) {
   const [exporting, setExporting] = useState(false);
   const [exportError, setExportError] = useState<string | null>(null);
   const [copiedAddr, setCopiedAddr] = useState(false);
+  const [securing, setSecuring] = useState(false);
+  const [secureMsg, setSecureMsg] = useState<string | null>(null);
+  const [secureTone, setSecureTone] = useState<'jade' | 'blood'>('jade');
 
   const load = useCallback(async () => {
     try {
@@ -145,6 +148,72 @@ function WalletHome({ address }: { address: string }) {
             </button>
           </form>
         )}
+      </section>
+
+      <section className="flex flex-col gap-4 rounded-3xl border border-line bg-surface p-5 sm:p-6">
+        <div>
+          <h2 className="text-xl font-semibold text-ivory">Protect this wallet</h2>
+          <p className="mt-1 text-sm leading-relaxed text-stone">
+            Two optional layers, both in Privy windows where Scout never sees your secrets.
+          </p>
+        </div>
+        <ul className="flex flex-col gap-3 text-sm leading-relaxed text-stone">
+          <li className="flex items-start justify-between gap-3">
+            <span>
+              <span className="text-ivory">Wallet password.</span> Locks the encrypted backup of
+              this wallet, so a stolen login alone cannot restore it on another device.
+            </span>
+          </li>
+          <li className="flex items-start justify-between gap-3">
+            <span>
+              <span className="text-ivory">Two-step sign-in.</span>{' '}
+              {auth.mfaMethods.length > 0
+                ? `On (${auth.mfaMethods.join(', ')}).`
+                : 'Off. Every sign-in on a new device asks for a second code.'}
+            </span>
+          </li>
+        </ul>
+        <div className="grid gap-2.5 sm:grid-cols-2">
+          <button
+            type="button"
+            onClick={() => {
+              setSecuring(true);
+              setSecureMsg(null);
+              void auth.setWalletPassword().then(() => {
+                setSecureTone('jade');
+                setSecureMsg('Wallet password set. Keep it somewhere safe.');
+              }).catch((e: unknown) => {
+                setSecureTone('blood');
+                setSecureMsg(e instanceof Error ? e.message : 'Could not set the password.');
+              }).finally(() => setSecuring(false));
+            }}
+            disabled={securing}
+            className={`${btn.secondary} h-12`}
+          >
+            {securing ? 'Opening...' : 'Set wallet password'}
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              try {
+                auth.enrollMfa();
+              } catch (e) {
+                setSecureTone('blood');
+                setSecureMsg(e instanceof Error ? e.message : 'Could not open enrollment.');
+              }
+            }}
+            className={`${btn.secondary} h-12`}
+          >
+            {auth.mfaMethods.length > 0 ? 'Manage two-step sign-in' : 'Turn on two-step sign-in'}
+          </button>
+        </div>
+        {secureMsg && (
+          <p className={`text-sm ${secureTone === 'jade' ? 'text-jade' : 'text-blood'}`}>{secureMsg}</p>
+        )}
+        <p className="text-xs leading-relaxed text-faint">
+          No password or code you enter here ever reaches Scout. If you lose both the login and the
+          recovery password, the wallet cannot be recovered, so back up the secret too.
+        </p>
       </section>
 
       <section className="flex flex-col gap-4 rounded-3xl border border-line bg-surface p-5 sm:p-6">

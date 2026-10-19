@@ -50,9 +50,51 @@ html {
   scroll-padding-top: 5rem;
 }
 
-/* Native controls (select, scrollbars) follow the light theme. */
+/* Native controls (select, scrollbars) follow the active theme. */
 :root {
   color-scheme: light;
+}
+.dark {
+  color-scheme: dark;
+}
+
+/*
+ * Dark theme: the same token names, remapped. Class names predate both
+ * themes, so the toggle flips one class on <html> and everything follows.
+ * Light stays the brand default; this block only remaps roles, never layout.
+ */
+.dark {
+  /* Page: deep ink */
+  --color-obsidian: #0e1210;
+  /* Card: raised ink */
+  --color-surface: #161c19;
+  /* Hover wash / skeleton */
+  --color-elevated: #1f2723;
+  /* Hairline borders */
+  --color-line: #2a332e;
+  --color-linestrong: #3d4a43;
+  /* Ink */
+  --color-ivory: #f2f0e9;
+  /* Secondary text */
+  --color-stone: #b9c0b6;
+  /* Tertiary text */
+  --color-faint: #7d877c;
+  /* Accent: lime CTA on dark, deep green-ink on light */
+  --color-citron: #c8f04a;
+  --color-citronhover: #dcff70;
+  --color-jade: #4ade80;
+  --color-lime: #a3e635;
+  --color-blood: #f87171;
+  --color-amber: #fbbf24;
+}
+
+.dark ::selection {
+  background: #c8f04a;
+  color: #0e1210;
+}
+
+.dark .grain::after {
+  opacity: 0.05;
 }
 
 select {

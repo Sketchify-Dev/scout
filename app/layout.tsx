@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono, Instrument_Serif } from "next/font/google";
 import { ScoutAuthProvider } from "@/components/auth/ScoutAuth";
 import { CurrencyProvider } from "@/components/Currency";
+import { THEME_SCRIPT, ThemeProvider } from "@/components/Theme";
 import { SiteFooter, SiteHeader } from "@/components/SiteChrome";
 import "./globals.css";
 
@@ -29,16 +30,21 @@ export const metadata: Metadata = {
 
 export const viewport: Viewport = {
   themeColor: "#FBFAF7",
-  colorScheme: "light",
+  colorScheme: "light dark",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
       lang="en"
+      suppressHydrationWarning
       className={`${geistSans.variable} ${geistMono.variable} ${instrumentSerif.variable} h-full antialiased`}
     >
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }} />
+      </head>
       <body className="grain flex min-h-full flex-col bg-obsidian text-ivory">
+        <ThemeProvider>
         <ScoutAuthProvider>
           <CurrencyProvider>
           <a
@@ -54,6 +60,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
           <SiteFooter />
           </CurrencyProvider>
         </ScoutAuthProvider>
+        </ThemeProvider>
       </body>
     </html>
   );

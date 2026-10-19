@@ -7,6 +7,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useLoginWithEmail, useLoginWithOAuth, useLoginWithSms } from '@privy-io/react-auth';
 import { useScoutAuth } from '@/components/auth/ScoutAuth';
 import { LogoLockup } from '@/components/Logo';
+import { useTheme } from '@/components/Theme';
 import { Notice, btn, field } from '@/components/ui';
 
 type Method = 'email' | 'phone';
@@ -28,6 +29,11 @@ const COUNTRIES = [
   ['+1', 'United States', 'us'],
   ['+44', 'United Kingdom', 'gb'],
 ] as const;
+
+function LoginLockup() {
+  const { theme } = useTheme();
+  return <LogoLockup height={44} variant={theme === 'dark' ? 'dark' : 'light'} />;
+}
 
 /** Only same-site relative paths are allowed as a post-login destination. */
 function safeNext(raw: string | null): string {
@@ -360,7 +366,7 @@ export function LoginClient() {
   return (
     <div className="mx-auto grid max-w-6xl gap-12 px-4 py-16 sm:px-6 sm:py-24 lg:grid-cols-[1fr_minmax(0,26rem)] lg:gap-20">
       <div className="flex flex-col gap-6 lg:pt-6">
-        <LogoLockup height={44} />
+        <LoginLockup />
         <h1 className="font-display text-5xl leading-[1.02] text-ivory sm:text-6xl">
           Get paid for
           <br />
