@@ -71,13 +71,13 @@ function useUsdcBalance(address: string | null) {
   return baseUnits;
 }
 
-function HeaderBalance({ address }: { address: string | null }) {
+function BalancePill({ address, className = '' }: { address: string | null; className?: string }) {
   const baseUnits = useUsdcBalance(address);
   return (
     <Link
       href="/wallet"
       title="Your USDC balance. Open the wallet to send."
-      className="hidden h-9 items-center rounded-full border border-line bg-surface px-3 font-mono text-[12px] text-ivory transition-colors hover:border-linestrong focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ivory sm:inline-flex"
+      className={`inline-flex h-9 shrink-0 items-center rounded-full border border-line bg-surface px-3 font-mono text-[12px] text-ivory transition-colors hover:border-linestrong focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ivory ${className}`}
     >
       {baseUnits === null ? <span className="text-faint">···</span> : <Money baseUnits={baseUnits} />}
     </Link>
@@ -249,14 +249,14 @@ function HeaderInner() {
           })}
         </nav>
         <div className="ml-auto flex items-center gap-3">
-          <HeaderBalance address={address} />
+          <BalancePill address={address} className="hidden sm:inline-flex" />
           <ThemeToggle />
           <CurrencySwitch />
           <NetworkPill />
           <Account />
         </div>
       </div>
-      <nav className="flex gap-1 overflow-x-auto border-t border-line px-3 py-2 md:hidden" aria-label="Main">
+      <nav className="flex items-center gap-1 overflow-x-auto border-t border-line px-3 py-2 md:hidden" aria-label="Main">
         {NAV.map((n) => {
           const active = path === n.href || path.startsWith(`${n.href}/`);
           return (
@@ -270,6 +270,7 @@ function HeaderInner() {
             </Link>
           );
         })}
+        {address && <BalancePill address={address} className="ml-auto" />}
       </nav>
     </header>
   );
