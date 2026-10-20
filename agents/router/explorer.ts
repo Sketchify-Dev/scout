@@ -137,21 +137,35 @@ function cacheKey(cfg: RouterConfig): string {
 }
 
 /**
- * Incremental BountyCreated index. The first call scans from the deploy
- * block in range-capped chunks; later calls only scan new blocks.
+ * BountyCreated lookup for specific ids, newest block first.
+ *
+ * The old index scanned oldest-first from the deploy block, which on a cold
+ * start meant hundreds of chunked RPC calls before reaching a bounty posted
+ * yesterday. Recent bounties then rendered as "(question not found in logs)"
+ * while older ones resolved fine. Scanning backwards and stopping as soon as
+ * every requested id is found makes the cost proportional to how new the
+ * bounty is, which is exactly the common case: the page someone just posted.
  */
-async function refreshCreated(cfg: RouterConfig): Promise<CreatedCache> {
+async function createdEvents(
+  cfg: RouterConfig,
+  needed: Set<string>,
+): Promise<Map<string, { question: string; tx: Hash; block: bigint }>> {
   const client = publicClientFor(cfg);
-  const key = cacheKey(cfg);
-  if (!createdCache || createdCache.key !== key) {
-    const floor = cfg.escrowDeployBlock ?? BigInt(0);
-    createdCache = { key, scannedTo: floor - BigInt(1), byId: new Map() };
+  const found = new Map<string, { question: string; tx: Hash; block: bigint }>();
+
+  // Serve anything already in the cache before touching the network.
+  if (createdCache && createdCache.key === cacheKey(cfg)) {
+    for (const id of needed) {
+      const hit = createdCache.byId.get(id);
+      if (hit) found.set(id, hit);
+    }
   }
-  const cache = createdCache;
-  const head = await client.getBlockNumber();
-  let from = cache.scannedTo + BigInt(1);
-  while (from <= head) {
-    const to = from + CHUNK - BigInt(1) < head ? from + CHUNK - BigInt(1) : head;
+  if (found.size === needed.size) return found;
+
+  const floor = cfg.escrowDeployBlock ?? BigInt(0);
+  let to = await client.getBlockNumber();
+  while (to >= floor && found.size < needed.size) {
+    const from = to - CHUNK + BigInt(1) >= floor ? to - CHUNK + BigInt(1) : floor;
     const logs = await client.getContractEvents({
       address: cfg.escrow,
       abi: explorerAbi,
@@ -162,16 +176,24 @@ async function refreshCreated(cfg: RouterConfig): Promise<CreatedCache> {
     for (const log of logs) {
       const args = log.args as { bountyId?: bigint; prompt?: string };
       if (args.bountyId === undefined || typeof args.prompt !== 'string') continue;
-      cache.byId.set(args.bountyId.toString(), {
+      const id = args.bountyId.toString();
+      const entry = {
         question: args.prompt,
         tx: log.transactionHash as Hash,
         block: log.blockNumber as bigint,
-      });
+      };
+      // Cache every creation seen, not only the requested ones: the list
+      // endpoint asks for a window and neighbouring pages benefit.
+      if (!createdCache || createdCache.key !== cacheKey(cfg)) {
+        createdCache = { key: cacheKey(cfg), scannedTo: BigInt(0), byId: new Map() };
+      }
+      createdCache.byId.set(id, entry);
+      if (needed.has(id)) found.set(id, entry);
     }
-    cache.scannedTo = to;
-    from = to + BigInt(1);
+    if (from === floor) break;
+    to = from - BigInt(1);
   }
-  return cache;
+  return found;
 }
 
 async function readBounty(cfg: RouterConfig, bountyId: bigint) {
@@ -203,18 +225,20 @@ export async function listBounties(cfg: RouterConfig): Promise<BountySummary[]> 
   })) as bigint;
   const last = next - BigInt(1);
   if (last < BigInt(1)) return [];
-  const cache = await refreshCreated(cfg);
   const ids: bigint[] = [];
   for (let id = last; id >= BigInt(1) && ids.length < LIST_LIMIT; id--) ids.push(id);
-  const states = await Promise.all(ids.map((id) => readBounty(cfg, id)));
+  const [states, created] = await Promise.all([
+    Promise.all(ids.map((id) => readBounty(cfg, id))),
+    createdEvents(cfg, new Set(ids.map((id) => id.toString()))),
+  ]);
   return ids.map((id, i) => {
-    const created = cache.byId.get(id.toString());
+    const hit = created.get(id.toString());
     return {
       bountyId: id.toString(),
-      question: created?.question ?? '(question not found in logs)',
+      question: hit?.question ?? '(question not found in logs)',
       ...states[i],
-      createdTx: created?.tx ?? null,
-      createdBlock: created?.block.toString() ?? null,
+      createdTx: hit?.tx ?? null,
+      createdBlock: hit?.block.toString() ?? null,
     };
   });
 }
@@ -292,7 +316,8 @@ export async function getContributorHistory(cfg: RouterConfig, responder: Addres
     }
   }
 
-  const cache = await refreshCreated(cfg);
+  // Only the bounties this person answered need their prompt resolved.
+  const cache = await createdEvents(cfg, new Set(answered.map((a) => a.bountyId.toString())));
   const views = await Promise.all(
     answered.map(async (a) => {
       const state = await readBounty(cfg, a.bountyId);
@@ -307,7 +332,7 @@ export async function getContributorHistory(cfg: RouterConfig, responder: Addres
             : 'not-paid';
       return {
         bountyId: key,
-        question: cache.byId.get(key)?.question ?? '(question not found in logs)',
+        question: cache.get(key)?.question ?? '(question not found in logs)',
         answer: a.answer,
         txHash: a.txHash,
         status: state.status,
@@ -350,8 +375,7 @@ export async function getBountyDetail(cfg: RouterConfig, bountyId: bigint): Prom
   if (state.status === 'None') return null;
 
   const client = publicClientFor(cfg);
-  const cache = await refreshCreated(cfg);
-  const created = cache.byId.get(bountyId.toString());
+  const created = (await createdEvents(cfg, new Set([bountyId.toString()]))).get(bountyId.toString());
   // Everything about a bounty happens after it was created, so scans start there.
   const floor = created?.block ?? cfg.escrowDeployBlock ?? BigInt(0);
   const head = await client.getBlockNumber();
