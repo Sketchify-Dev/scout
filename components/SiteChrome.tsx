@@ -8,6 +8,7 @@ import { CurrencySwitch } from '@/components/CurrencySwitch';
 import { LogoLockup } from '@/components/Logo';
 import { ThemeToggle, useTheme } from '@/components/Theme';
 import { CopyButton } from '@/components/ui';
+import { Money } from '@/components/Currency';
 import { useNetwork } from '@/components/useNetwork';
 import { shortAddr } from '@/lib/scout';
 
@@ -31,6 +32,62 @@ function NetworkPill() {
       {net.label}
     </span>
   );
+}
+
+/**
+ * Live USDC balance in the header, so the money is visible without a
+ * scroll. Refreshes once a minute and on focus; the full wallet page
+ * stays one click away. Mobile keeps the header uncluttered and shows
+ * the same figure inside the account menu instead.
+ */
+function useUsdcBalance(address: string | null) {
+  const [baseUnits, setBaseUnits] = useState<string | null>(null);
+  useEffect(() => {
+    if (!address) {
+      setBaseUnits(null);
+      return;
+    }
+    let stop = false;
+    const load = () => {
+      void fetch(`/api/balance?address=${address}`, { cache: 'no-store' })
+        .then((r) => r.json() as Promise<{ usdcBaseUnits?: string }>)
+        .then((b) => {
+          if (!stop && b.usdcBaseUnits !== undefined) setBaseUnits(b.usdcBaseUnits);
+        })
+        .catch(() => {
+          // Balance is a convenience; the wallet page reports real errors.
+        });
+    };
+    load();
+    const timer = setInterval(load, 60000);
+    const onFocus = () => load();
+    window.addEventListener('focus', onFocus);
+    return () => {
+      stop = true;
+      clearInterval(timer);
+      window.removeEventListener('focus', onFocus);
+    };
+  }, [address]);
+  return baseUnits;
+}
+
+function HeaderBalance({ address }: { address: string | null }) {
+  const baseUnits = useUsdcBalance(address);
+  return (
+    <Link
+      href="/wallet"
+      title="Your USDC balance. Open the wallet to send."
+      className="hidden h-9 items-center rounded-full border border-line bg-surface px-3 font-mono text-[12px] text-ivory transition-colors hover:border-linestrong focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ivory sm:inline-flex"
+    >
+      {baseUnits === null ? <span className="text-faint">···</span> : <Money baseUnits={baseUnits} />}
+    </Link>
+  );
+}
+
+function AccountBalance({ address }: { address: string | null }) {
+  const baseUnits = useUsdcBalance(address);
+  if (baseUnits === null) return <span className="text-faint">···</span>;
+  return <Money baseUnits={baseUnits} />;
 }
 
 function Account() {
@@ -106,6 +163,12 @@ function Account() {
               <CopyButton value={auth.address} />
             </p>
           )}
+          <div className="my-2 flex items-center justify-between px-2 text-sm sm:hidden">
+            <span className="text-faint">Balance</span>
+            <span className="font-mono text-ivory">
+              <AccountBalance address={auth.address} />
+            </span>
+          </div>
           <div className="my-2 h-px bg-line" />
           <Link
             href="/contribute"
@@ -160,6 +223,8 @@ export function SiteHeader() {
 
 function HeaderInner() {
   const path = usePathname();
+  const auth = useScoutAuth();
+  const address = auth.authenticated ? auth.address : null;
   return (
     <header className="sticky top-0 z-30 border-b border-line bg-obsidian/85 backdrop-blur-md supports-[backdrop-filter]:bg-obsidian/70">
       <div className="mx-auto flex h-16 max-w-6xl items-center gap-6 px-4 sm:px-6">
@@ -184,6 +249,7 @@ function HeaderInner() {
           })}
         </nav>
         <div className="ml-auto flex items-center gap-3">
+          <HeaderBalance address={address} />
           <ThemeToggle />
           <CurrencySwitch />
           <NetworkPill />
