@@ -249,7 +249,7 @@ function HeaderInner() {
           })}
         </nav>
         <div className="ml-auto flex items-center gap-3">
-          <BalancePill address={address} className="hidden sm:inline-flex" />
+          <BalancePill address={address} className="hidden md:inline-flex" />
           <ThemeToggle />
           <CurrencySwitch />
           <NetworkPill />
