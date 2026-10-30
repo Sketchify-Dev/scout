@@ -25,6 +25,15 @@ export async function POST(request: NextRequest) {
         { status: 500 },
       );
     }
+    if (!/^0x[0-9a-fA-F]{64}$/.test(key)) {
+      return Response.json(
+        {
+          error:
+            'REQUESTER_PRIVATE_KEY must be a 0x-prefixed 32-byte hex key (66 chars, e.g. 0x...64 hex) taken from the env, not a bare key or a truncated value.',
+        },
+        { status: 500 },
+      );
+    }
     const { privateKeyToAccount } = await import('viem/accounts');
     const account = privateKeyToAccount(key);
     const signer = {
