@@ -254,8 +254,15 @@ export function BountyView({ params }: { params: Promise<{ id: string }> }) {
               )}
 
               {settleNote && !settleNote.settled && (
-                <Notice tone={settleNote.error ? 'blood' : 'amber'} title={settleNote.error ? 'Verifier failed' : 'Not settled'}>
+                <Notice tone={settleNote.error ? 'blood' : 'amber'} title={settleNote.error ? 'Verifier failed' : 'Not settled — no payment sent'}>
                   {settleNote.error ?? settleNote.reason ?? 'The verifier could not reach a consensus.'}
+                  {!settleNote.error && (
+                    <span className="mt-2 block">
+                      No transaction was sent and no gas was spent: the answers did not agree, so there is
+                      nothing to pay. The escrowed reward stays locked until matching answers arrive.
+                      {settleNote.summary && <span className="mt-1 block font-mono text-[12px]">{settleNote.summary}</span>}
+                    </span>
+                  )}
                 </Notice>
               )}
 

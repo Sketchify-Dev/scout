@@ -85,13 +85,14 @@ self-dealing.
 
 - [ ] Enrolled via Enroll now; marker issued; marker wired into frontend wallet
       client and router backend before the first countable action.
-- [ ] ERC-8021 attribution via `@celo/attribution-tags`: `withAttribution`
+- [x] ERC-8021 attribution via `@celo/attribution-tags`: `withAttribution`
       on the router's wallet client tags every router transaction. Our code
       `celo_0107eaa60597` is platform-assigned by Loops House, not derived
-      from the repo slug, so ATTRIBUTION_REPO stays unset. Before the first
-      bounty: decode a Mainnet bounty tx with `verifyTx` and confirm the tag.
-      (An earlier note here claimed `data-divvi-tag` button attributes were
-      required. BUILDERS.md has no such mechanism; they were removed.)
+      from the repo slug, so ATTRIBUTION_REPO stays unset. Proven on-chain:
+      `node scripts/verify-attribution.mts --bounty 14` decodes the creation
+      tx `0x8bcae4ce...` to `celo_0107eaa60597` (schema 0) via the official
+      SDK's `verifyTx`. `node scripts/submission-check.mts` re-proves this on
+      every run.
 - [ ] Full loop working on Celo Sepolia: requester agent -> router (x402) ->
       escrow bounty -> human responses -> verifier settle -> callback with
       confidence score and tx hash.
@@ -102,7 +103,10 @@ self-dealing.
       `ScoutEscrow` `0xfadc702a7c7da1bc1ca0c469c859ffdb5c71f0a6` (tag `celo_0107eaa60597`),
       `ScoutReputation` `0x29bb83558cd52dc1001dcf76706dccb42f92752f`.
       Full record in `deployments/42220.json`.
-- [ ] Source verification confirmed (submitted to Sourcify, result pending).
+- [x] Source verification confirmed: both contracts `exact_match` on Sourcify
+      (checked 2026-10-31 via `GET /v2/contract/42220/<address>` for both
+      addresses below; re-check with
+      `node scripts/submission-check.mts`, which asserts this live).
 - [ ] ERC-8004 identity created from the agent wallet before the cutoff.
 - [ ] PayTo wallet registered for x402 deals.
 - [ ] At least one full real bounty loop on Mainnet with real stable: create,

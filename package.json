@@ -7,7 +7,9 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test": "node --test tests/verifier.mjs"
+    "test": "node --test tests/verifier.mjs",
+    "gate": "node scripts/submission-check.mts",
+    "prove-tag": "node scripts/verify-attribution.mts"
   },
   "dependencies": {
     "@celo/attribution-tags": "^0.5.0",
