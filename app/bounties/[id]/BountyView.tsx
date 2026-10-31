@@ -254,7 +254,7 @@ export function BountyView({ params }: { params: Promise<{ id: string }> }) {
               )}
 
               {settleNote && !settleNote.settled && (
-                <Notice tone={settleNote.error ? 'blood' : 'amber'} title={settleNote.error ? 'Verifier failed' : 'Not settled — no payment sent'}>
+                <Notice tone={settleNote.error ? 'blood' : 'amber'} title={settleNote.error ? 'Verifier failed' : 'Not settled: no payment sent'}>
                   {settleNote.error ?? settleNote.reason ?? 'The verifier could not reach a consensus.'}
                   {!settleNote.error && (
                     <span className="mt-2 block">
